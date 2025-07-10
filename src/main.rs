@@ -121,7 +121,6 @@ fn format_modified_time(metadata: &Metadata) -> String {
     }
 }
 
-// Optional dummy functions for code padding or future use
 #[allow(dead_code)]
 fn sample_unused_logic() {
     let example = PathBuf::from(".");
