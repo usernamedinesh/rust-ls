@@ -18,6 +18,7 @@ cargo run              # List visible files
 cargo run -- -a        # Include hidden files
 cargo run -- -l        # Long format listing
 cargo run -- -a -l     # Combine options
+cargo run -- -t        # Sort by modification time (newest first)
 cargo run -- -help     # Show help
 cargo run -- -version  # Version info
 ```
