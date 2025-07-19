@@ -3,12 +3,13 @@ use std::fs::{self, DirEntry, Metadata};
 use std::io;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
-use std::time::UNIX_EPOCH; 
+use std::time::UNIX_EPOCH;
 
 #[derive(Default, Debug)]
 struct Options {
-    show_all: bool,    // -a : show hidden files
-    long_format: bool  // -l : long format
+    show_all: bool,     // -a : show hidden files
+    long_format: bool,  // -l : long format
+    sort_time: bool,    // -t : sort by modification time
 }
 
 fn main() {
@@ -30,6 +31,7 @@ fn parse_options(args: &[String]) -> Options {
         match arg.as_str() {
             "-a" => opts.show_all = true,
             "-l" => opts.long_format = true,
+            "-t" => opts.sort_time = true,
             "-help" => {
                 print_help();
                 std::process::exit(0);
@@ -53,20 +55,28 @@ fn print_help() {
     println!("\nOptions:");
     println!("   -a          Include hidden files");
     println!("   -l          Use long listing format");
+    println!("   -t          Sort by modification time (newest first)");
     println!("   -help       Display this help message");
     println!("   -version    Show version information");
 }
 
 fn list_directory(path: &Path, options: &Options) -> io::Result<()> {
-    let entries = fs::read_dir(path)?;
+    let mut entries: Vec<_> = fs::read_dir(path)?
+        .filter_map(Result::ok)
+        .filter(|e| {
+            options.show_all || !e.file_name().to_string_lossy().starts_with('.')
+        })
+        .collect();
+
+    if options.sort_time {
+        entries.sort_by_key(|entry| {
+            entry.metadata().and_then(|m| m.modified()).ok()
+        });
+        entries.reverse(); // newest first
+    }
 
     for entry in entries {
-        let entry = entry?;
         let file_name = entry.file_name().into_string().unwrap_or_default();
-
-        if !options.show_all && file_name.starts_with('.') {
-            continue; // Skip hidden files
-        }
 
         if options.long_format {
             let metadata = entry.metadata()?;
@@ -91,7 +101,11 @@ fn print_long_format(_path: &Path, name: &str, metadata: &Metadata) {
 }
 
 fn get_file_type(metadata: &Metadata) -> &'static str {
-    if metadata.is_dir() { "d" } else { "-" }
+    if metadata.is_dir() {
+        "d"
+    } else {
+        "-"
+    }
 }
 
 fn format_permission(metadata: &Metadata) -> String {
@@ -101,9 +115,27 @@ fn format_permission(metadata: &Metadata) -> String {
     for i in (0..9).rev() {
         let bit = 1 << i;
         let ch = match i % 3 {
-            2 => if mode & bit != 0 { 'r' } else { '-' },
-            1 => if mode & bit != 0 { 'w' } else { '-' },
-            0 => if mode & bit != 0 { 'x' } else { '-' },
+            2 => {
+                if mode & bit != 0 {
+                    'r'
+                } else {
+                    '-'
+                }
+            }
+            1 => {
+                if mode & bit != 0 {
+                    'w'
+                } else {
+                    '-'
+                }
+            }
+            0 => {
+                if mode & bit != 0 {
+                    'x'
+                } else {
+                    '-'
+                }
+            }
             _ => '-', // shouldn't happen
         };
         perms.push(ch);
@@ -120,6 +152,8 @@ fn format_modified_time(metadata: &Metadata) -> String {
         Err(_) => "??".to_string(),
     }
 }
+
+// Unused helpers (you can remove or keep for expansion/future features)
 
 #[allow(dead_code)]
 fn sample_unused_logic() {
