@@ -75,6 +75,8 @@ fn list_directory(path: &Path, options: &Options) -> io::Result<()> {
         entries.reverse(); // newest first
     }
 
+    let mut count = 0;
+
     for entry in entries {
         let file_name = entry.file_name().into_string().unwrap_or_default();
 
@@ -84,7 +86,12 @@ fn list_directory(path: &Path, options: &Options) -> io::Result<()> {
         } else {
             println!("{}", file_name);
         }
+
+        count += 1;
     }
+
+    println!("Total entries: {}", count);
+
     Ok(())
 }
 
